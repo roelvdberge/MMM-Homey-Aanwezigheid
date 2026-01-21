@@ -100,16 +100,29 @@ module.exports = NodeHelper.create({
 
   extractVariables: function (payload) {
     const items = payload && payload.result ? payload.result : payload;
-    if (!items || !Array.isArray(items)) {
-      return {};
+    const map = {};
+    if (!items) {
+      return map;
     }
 
-    const map = {};
-    items.forEach((item) => {
-      if (item && item.name) {
-        map[item.name] = item.value;
-      }
-    });
+    if (Array.isArray(items)) {
+      items.forEach((item) => {
+        if (item && item.name) {
+          map[item.name] = item.value;
+        }
+      });
+      return map;
+    }
+
+    if (typeof items === "object") {
+      Object.keys(items).forEach((key) => {
+        const item = items[key];
+        if (item && item.name) {
+          map[item.name] = item.value;
+        }
+      });
+      return map;
+    }
 
     return map;
   },
