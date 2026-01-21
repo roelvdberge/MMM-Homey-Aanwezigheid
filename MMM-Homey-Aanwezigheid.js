@@ -10,6 +10,7 @@ Module.register("MMM-Homey-Aanwezigheid", {
     absentColor: "#8e8e8e",
     showLabels: true,
     labelPosition: "below",
+    debug: false,
     people: []
   },
 
@@ -20,6 +21,7 @@ Module.register("MMM-Homey-Aanwezigheid", {
   start: function () {
     this.stateByVariable = {};
     this.loaded = false;
+    this.lastError = null;
     this.sendSocketNotification("CONFIG", this.config);
   },
 
@@ -27,6 +29,15 @@ Module.register("MMM-Homey-Aanwezigheid", {
     if (notification === "PRESENCE_UPDATE") {
       this.stateByVariable = payload || {};
       this.loaded = true;
+      this.lastError = null;
+      this.updateDom();
+    }
+    if (notification === "PRESENCE_ERROR") {
+      this.loaded = true;
+      this.lastError = payload || { message: "Unknown error" };
+      if (this.config.debug) {
+        console.log("[MMM-Homey-Aanwezigheid] error", this.lastError);
+      }
       this.updateDom();
     }
   },
@@ -37,6 +48,11 @@ Module.register("MMM-Homey-Aanwezigheid", {
 
     if (!this.loaded) {
       wrapper.innerText = "Presence: loading...";
+      return wrapper;
+    }
+
+    if (this.lastError) {
+      wrapper.innerText = "Presence: error (check logs)";
       return wrapper;
     }
 

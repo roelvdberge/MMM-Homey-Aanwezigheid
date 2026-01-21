@@ -31,6 +31,7 @@ Add to `MagicMirror/config/config.js`:
     absentColor: "#8e8e8e",
     showLabels: true,
     labelPosition: "below",
+    debug: false,
     people: [
       { name: "Femke", variable: "Femke Binnen", icon: "fa-solid fa-user" },
       { name: "Anna", variable: "Anna Binnen", icon: "fa-solid fa-user" },
@@ -45,3 +46,4 @@ Add to `MagicMirror/config/config.js`:
 ## Notes
 - Uses Homey local API: `GET /api/manager/logic/variable`
 - Logic variables should be boolean or string `Ja/Nee`
+- Set `debug: true` to see logs in MagicMirror server output and browser console

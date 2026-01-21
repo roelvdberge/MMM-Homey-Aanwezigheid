@@ -8,11 +8,17 @@ module.exports = NodeHelper.create({
   start: function () {
     this.config = null;
     this.pollTimer = null;
+    this.lastLogAt = 0;
   },
 
   socketNotificationReceived: function (notification, payload) {
     if (notification === "CONFIG") {
       this.config = payload;
+      this.log("config received", {
+        homeyBaseUrl: this.config.homeyBaseUrl,
+        logicEndpoint: this.config.logicEndpoint,
+        pollInterval: this.config.pollInterval
+      });
       this.scheduleFetch(0);
     }
   },
@@ -28,6 +34,8 @@ module.exports = NodeHelper.create({
 
   fetchPresence: function () {
     if (!this.config || !this.config.apiKey) {
+      this.log("missing apiKey in config");
+      this.sendSocketNotification("PRESENCE_ERROR", { message: "Missing apiKey in config" });
       this.sendSocketNotification("PRESENCE_UPDATE", {});
       this.scheduleFetch(this.config ? this.config.pollInterval : 30000);
       return;
@@ -55,6 +63,11 @@ module.exports = NodeHelper.create({
 
       res.on("end", () => {
         if (res.statusCode < 200 || res.statusCode >= 300) {
+          this.log("http error", { statusCode: res.statusCode, body: data });
+          this.sendSocketNotification("PRESENCE_ERROR", {
+            message: "HTTP error",
+            statusCode: res.statusCode
+          });
           this.sendSocketNotification("PRESENCE_UPDATE", {});
           this.scheduleFetch(this.config.pollInterval);
           return;
@@ -63,8 +76,11 @@ module.exports = NodeHelper.create({
         try {
           const parsed = JSON.parse(data);
           const variables = this.extractVariables(parsed);
+          this.log("presence updated", { count: Object.keys(variables).length });
           this.sendSocketNotification("PRESENCE_UPDATE", variables);
         } catch (error) {
+          this.log("json parse error", { message: error.message });
+          this.sendSocketNotification("PRESENCE_ERROR", { message: "JSON parse error" });
           this.sendSocketNotification("PRESENCE_UPDATE", {});
         }
 
@@ -72,7 +88,9 @@ module.exports = NodeHelper.create({
       });
     });
 
-    req.on("error", () => {
+    req.on("error", (error) => {
+      this.log("request error", { message: error.message });
+      this.sendSocketNotification("PRESENCE_ERROR", { message: "Request error" });
       this.sendSocketNotification("PRESENCE_UPDATE", {});
       this.scheduleFetch(this.config.pollInterval);
     });
@@ -94,5 +112,17 @@ module.exports = NodeHelper.create({
     });
 
     return map;
+  },
+
+  log: function (message, details) {
+    if (!this.config || !this.config.debug) return;
+    const now = Date.now();
+    if (now - this.lastLogAt < 1000) return;
+    this.lastLogAt = now;
+    if (details) {
+      console.log(`[MMM-Homey-Aanwezigheid] ${message}`, details);
+    } else {
+      console.log(`[MMM-Homey-Aanwezigheid] ${message}`);
+    }
   }
 });
