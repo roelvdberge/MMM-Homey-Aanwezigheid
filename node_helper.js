@@ -76,7 +76,8 @@ module.exports = NodeHelper.create({
         try {
           const parsed = JSON.parse(data);
           const variables = this.extractVariables(parsed);
-          this.log("presence updated", { count: Object.keys(variables).length });
+          const names = Object.keys(variables);
+          this.log("presence updated", { count: names.length, sample: names.slice(0, 5) });
           this.sendSocketNotification("PRESENCE_UPDATE", variables);
         } catch (error) {
           this.log("json parse error", { message: error.message });
@@ -99,7 +100,7 @@ module.exports = NodeHelper.create({
   },
 
   extractVariables: function (payload) {
-    const items = payload && payload.result ? payload.result : payload;
+    const items = this.pickItems(payload);
     const map = {};
     if (!items) {
       return map;
@@ -125,6 +126,40 @@ module.exports = NodeHelper.create({
     }
 
     return map;
+  },
+
+  pickItems: function (payload) {
+    if (!payload) return null;
+
+    const candidate = payload && payload.result ? payload.result : null;
+    if (this.looksLikeVariables(candidate)) {
+      return candidate;
+    }
+
+    if (this.looksLikeVariables(payload)) {
+      return payload;
+    }
+
+    this.log("unexpected payload shape", {
+      payloadType: typeof payload,
+      hasResult: !!payload.result
+    });
+    return payload;
+  },
+
+  looksLikeVariables: function (value) {
+    if (!value) return false;
+    if (Array.isArray(value)) {
+      return value.some((item) => item && typeof item === "object" && item.name);
+    }
+    if (typeof value === "object") {
+      const keys = Object.keys(value);
+      return keys.some((key) => {
+        const item = value[key];
+        return item && typeof item === "object" && item.name;
+      });
+    }
+    return false;
   },
 
   log: function (message, details) {
